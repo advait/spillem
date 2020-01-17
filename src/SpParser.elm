@@ -22,7 +22,12 @@ type ParseError
 intParser : Parser SpExpression
 intParser =
     Parser.succeed SpInt
-        |= Parser.int
+        |= Parser.oneOf
+            [ Parser.succeed negate
+                |. Parser.symbol "-"
+                |= Parser.int
+            , Parser.int
+            ]
 
 
 {-| Parses an SpSymbol.
@@ -52,6 +57,11 @@ listParser =
             }
 
 
+{-| Parses an arbitrary SpExpression including nested lists.
+-}
 expressionParser : Parser SpExpression
 expressionParser =
-    Parser.oneOf [ intParser, symbolParser, listParser ]
+    Parser.lazy
+        (\_ ->
+            Parser.oneOf [ intParser, symbolParser, listParser ]
+        )
