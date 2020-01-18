@@ -37,7 +37,7 @@ symbolParser =
     Parser.succeed SpSymbol
         |= Parser.variable
             { start = \c -> Char.isAlpha c
-            , inner = \c -> Char.isAlphaNum c || c == ' '
+            , inner = \c -> Char.isAlphaNum c || c == '_'
             , reserved = Set.empty
             }
 
