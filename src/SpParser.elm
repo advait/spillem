@@ -65,3 +65,18 @@ expressionParser =
         (\_ ->
             Parser.oneOf [ intParser, symbolParser, listParser ]
         )
+
+
+{-| Prints an expression out.
+-}
+print : SpExpression -> String
+print expr =
+    case expr of
+        SpInt int ->
+            String.fromInt int
+
+        SpSymbol symbol ->
+            symbol
+
+        SpList list ->
+            "(" ++ (list |> List.map print |> String.join " ") ++ ")"

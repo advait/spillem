@@ -1,6 +1,7 @@
 module SpParserTest exposing (..)
 
 import Expect exposing (Expectation)
+import Fuzz exposing (Fuzzer)
 import SpParser exposing (..)
 import Test exposing (..)
 import Types exposing (..)
@@ -28,6 +29,7 @@ suite =
             , testParse (SpList [ SpList [] ]) "(())"
             , testParse (SpList [ SpInt 2, SpList [] ]) "(2 ())"
             ]
+        , fuzz expFuzzer "parse and print are inverses" (\exp -> Expect.equal (Just exp) (doParse <| print exp))
         ]
 
 
@@ -43,3 +45,25 @@ testParseFail input =
 doParse : String -> Maybe SpExpression
 doParse input =
     parse input |> Result.toMaybe
+
+
+{-| Randomly generates expressions for fuzz testing.
+-}
+expFuzzer : Fuzzer SpExpression
+expFuzzer =
+    let
+        intFuzzer =
+            Fuzz.int |> Fuzz.map SpInt
+
+        symbolFuzzer =
+            Fuzz.string |> Fuzz.map (\s -> SpSymbol ("a" ++ s |> String.filter Char.isAlpha))
+
+        -- Note that we must artificially constrain the depth of the list to avoid infinitely deep exprs
+        listFuzzer maxDepth =
+            if maxDepth <= 0 then
+                Fuzz.oneOf [ intFuzzer, symbolFuzzer ]
+
+            else
+                Fuzz.oneOf [ intFuzzer, symbolFuzzer, listFuzzer (maxDepth - 1) ]
+    in
+    Fuzz.oneOf [ intFuzzer, symbolFuzzer, listFuzzer 3 ]
