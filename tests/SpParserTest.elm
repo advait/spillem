@@ -21,7 +21,7 @@ suite =
             [ testParse (SpSymbol "a") "a"
             , testParse (SpSymbol "a_a") "a_a"
             , testParse (SpSymbol "Nil") "Nil"
-            , testParseFail "#t" -- # symbols not supported yet
+            , testParse (SpSymbol "#t") "#t"
             ]
         , describe "list"
             [ testParse (SpList []) "()"

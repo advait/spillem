@@ -34,10 +34,20 @@ intParser =
 -}
 symbolParser : Parser SpExpression
 symbolParser =
+    let
+        allowedSymbolChars =
+            "!@#$%^&*-+/,`~_" |> String.toList
+
+        symbolStart c =
+            Char.isAlpha c || List.member c allowedSymbolChars
+
+        symbolBody c =
+            Char.isAlphaNum c || List.member c allowedSymbolChars
+    in
     Parser.succeed SpSymbol
         |= Parser.variable
-            { start = \c -> Char.isAlpha c
-            , inner = \c -> Char.isAlphaNum c || c == '_'
+            { start = symbolStart
+            , inner = symbolBody
             , reserved = Set.empty
             }
 
