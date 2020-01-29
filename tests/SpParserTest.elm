@@ -26,7 +26,10 @@ suite =
         , describe "list"
             [ testParse (SpList []) "()"
             , testParse (SpList [ SpInt 1 ]) "(1)"
+            , testParse (SpList [ SpInt 1 ]) "(1 )"
+            , testParse (SpList [ SpInt 1 ]) "( 1 )"
             , testParse (SpList [ SpList [] ]) "(())"
+            , testParse (SpList [ SpList [] ]) " ( ( ) ) "
             , testParse (SpList [ SpInt 2, SpList [] ]) "(2 ())"
             ]
         , fuzz expFuzzer "parse and print are inverses" (\exp -> Expect.equal (Just exp) (doParse <| print exp))
@@ -35,7 +38,13 @@ suite =
 
 testParse : SpExpression -> String -> Test
 testParse out input =
-    test ("Parses " ++ input) <| \_ -> Expect.equal (Just out) (doParse input)
+    let
+        actualTest input_ =
+            test ("Parses '" ++ input_ ++ "'") <| \_ -> Expect.equal (Just out) (doParse input_)
+    in
+    [ input, " " ++ input, input ++ " ", "  " ++ input, input ++ "  ", "\t" ++ input, input ++ "\t" ]
+        |> List.map actualTest
+        |> Test.concat
 
 
 testParseFail input =

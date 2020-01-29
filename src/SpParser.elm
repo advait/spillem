@@ -17,6 +17,10 @@ type ParseError
     = ParseError
 
 
+spacesOrTabs =
+    Parser.chompWhile (\c -> c == ' ' || c == '\t' || c == '\n' || c == '\u{000D}')
+
+
 {-| Parses an SpInt.
 -}
 intParser : Parser SpExpression
@@ -36,7 +40,7 @@ symbolParser : Parser SpExpression
 symbolParser =
     let
         allowedSymbolChars =
-            "!@#$%^&*-+/,`~_" |> String.toList
+            "!@#$%^&*-+/,~_" |> String.toList
 
         symbolStart c =
             Char.isAlpha c || List.member c allowedSymbolChars
@@ -53,28 +57,36 @@ symbolParser =
 
 
 {-| Parses an SpList, an S-Expression (a space-separated list surrounded by parens).
+Note we don't consider anything for the separator as the expressionParser consumes whitespace for us.
 -}
 listParser : Parser SpExpression
 listParser =
     Parser.succeed SpList
         |= Parser.sequence
             { start = "("
-            , separator = " "
+            , separator = ""
             , end = ")"
             , item = expressionParser
-            , spaces = Parser.succeed ()
+            , spaces = spacesOrTabs
             , trailing = Parser.Optional
             }
 
 
-{-| Parses an arbitrary SpExpression including nested lists.
+{-| Parses an arbitrary SpExpression including nested lists. Strips the whitespace surrounding the expression.
 -}
 expressionParser : Parser SpExpression
 expressionParser =
-    Parser.lazy
-        (\_ ->
-            Parser.oneOf [ intParser, symbolParser, listParser ]
-        )
+    let
+        lazy =
+            Parser.lazy
+                (\_ ->
+                    Parser.oneOf [ intParser, symbolParser, listParser ]
+                )
+    in
+    Parser.succeed identity
+        |. spacesOrTabs
+        |= lazy
+        |. spacesOrTabs
 
 
 {-| Prints an expression out.
