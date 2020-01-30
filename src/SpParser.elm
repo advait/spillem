@@ -7,14 +7,10 @@ import Types exposing (..)
 
 {-| Parses an input string, potentially returning a parsed SpExpression.
 -}
-parse : String -> Result ParseError SpExpression
+parse : String -> Result String SpExpression
 parse input =
     Parser.run expressionParser input
-        |> Result.mapError (always ParseError)
-
-
-type ParseError
-    = ParseError
+        |> Result.mapError (always <| "Failed to parse input: " ++ input)
 
 
 spacesOrTabs =
@@ -102,3 +98,6 @@ print expr =
 
         SpList list ->
             "(" ++ (list |> List.map print |> String.join " ") ++ ")"
+
+        BuiltinFun _ ->
+            "<builtin>"
