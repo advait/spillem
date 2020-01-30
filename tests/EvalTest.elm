@@ -13,10 +13,11 @@ suite =
     describe "eval"
         [ testBasic "5" (SpInt 5)
         , testBasic "()" (SpList [])
-        , testBasic "+" (BuiltinFun Stdlib.plus)
         , testBasic "(+ 1 2)" (SpInt 3)
         , testBasic "(+ 1 (+ 2 3))" (SpInt 6)
         , testBasic "(+ (+ 4 5) (+ 2 3))" (SpInt 14)
+        , testBasic "(- 0 2)" (SpInt -2)
+        , testBasic "(- (* 3 4) (/ 9 3))" (SpInt 9)
         ]
 
 

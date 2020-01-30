@@ -28,6 +28,7 @@ intParser =
                 |= Parser.int
             , Parser.int
             ]
+        |> Parser.backtrackable
 
 
 {-| Parses an SpSymbol.

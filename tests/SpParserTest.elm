@@ -22,6 +22,8 @@ suite =
             , testParse (SpSymbol "a_a") "a_a"
             , testParse (SpSymbol "Nil") "Nil"
             , testParse (SpSymbol "#t") "#t"
+            , testParse (SpSymbol "+") "+"
+            , testParse (SpSymbol "-") "-"
             ]
         , describe "list"
             [ testParse (SpList []) "()"
@@ -31,6 +33,7 @@ suite =
             , testParse (SpList [ SpList [] ]) "(())"
             , testParse (SpList [ SpList [] ]) " ( ( ) ) "
             , testParse (SpList [ SpInt 2, SpList [] ]) "(2 ())"
+            , testParse (SpList [ SpSymbol "-", SpInt 0, SpInt 2 ]) "(- 0 2)"
             ]
         , fuzz expFuzzer "parse and print are inverses" (\exp -> Expect.equal (Just exp) (doParse <| print exp))
         ]

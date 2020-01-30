@@ -7,15 +7,21 @@ import Types exposing (..)
 lib : Dict SpSymbol SpExpression
 lib =
     Dict.fromList
-        [ ( "+", BuiltinFun plus )
+        [ ( "+", BuiltinFun (num2 (+)) )
+        , ( "-", BuiltinFun (num2 (-)) )
+        , ( "*", BuiltinFun (num2 (*)) )
+        , ( "/", BuiltinFun (num2 (//)) )
         ]
 
 
-plus : List SpExpression -> EvalResult
-plus args =
+{-| Convert an elm function that takes in two integer arguments into a BuiltinFun with appropriate argument
+error handling.
+-}
+num2 : (Int -> Int -> Int) -> (List SpExpression -> EvalResult)
+num2 f args =
     case args of
         [ SpInt x, SpInt y ] ->
-            Ok <| SpInt (x + y)
+            Ok <| SpInt (f x y)
 
         _ ->
             Err "Invalid call to plus"

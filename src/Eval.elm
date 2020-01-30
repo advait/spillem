@@ -23,6 +23,7 @@ eval env expr =
         SpList [] ->
             Ok <| SpList []
 
+        -- Function calls first evaluate all of the items in the list and then call the function with the args
         SpList exprs ->
             case evalArgs env exprs of
                 Err err ->
@@ -34,6 +35,7 @@ eval env expr =
                 Ok [] ->
                     Debug.todo "Will never happen. Handled by 'SpList []' case above."
 
+        -- Builtins evaluate to themselves
         BuiltinFun f ->
             Ok <| BuiltinFun f
 
