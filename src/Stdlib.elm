@@ -17,11 +17,15 @@ lib =
 {-| Convert an elm function that takes in two integer arguments into a BuiltinFun with appropriate argument
 error handling.
 -}
-num2 : (Int -> Int -> Int) -> (List SpExpression -> EvalResult)
-num2 f args =
+num2 : (Int -> Int -> Int) -> (Env -> List SpExpression -> EvalResult)
+num2 f env args =
     case args of
         [ SpInt x, SpInt y ] ->
-            Ok <| SpInt (f x y)
+            { result = Ok <| SpInt (f x y)
+            , env = env
+            }
 
         _ ->
-            Err "Invalid call to plus"
+            { result = Err "RuntimeError"
+            , env = env
+            }

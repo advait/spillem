@@ -11,23 +11,32 @@ eval env expr =
     case expr of
         -- Integers evaluate to themselves
         SpInt i ->
-            Ok <| SpInt i
+            { result = Ok <| SpInt i
+            , env = env
+            }
 
         -- Evaluating symbols dereferences the symbols in the environment
         SpSymbol s ->
-            env
-                |> Dict.get s
-                |> Result.fromMaybe ("ReferenceError: " ++ s)
+            { result =
+                env
+                    |> Dict.get s
+                    |> Result.fromMaybe ("ReferenceError: " ++ s)
+            , env = env
+            }
 
         -- Empty list evaluates to itself
         SpList [] ->
-            Ok <| SpList []
+            { result = Ok <| SpList []
+            , env = env
+            }
 
         -- Function calls first evaluate all of the items in the list and then call the function with the args
         SpList exprs ->
             case evalArgs env exprs of
                 Err err ->
-                    Err err
+                    { result = Err err
+                    , env = env
+                    }
 
                 Ok (fun :: args) ->
                     apply env fun args
@@ -37,7 +46,9 @@ eval env expr =
 
         -- Builtins evaluate to themselves
         BuiltinFun f ->
-            Ok <| BuiltinFun f
+            { result = Ok <| BuiltinFun f
+            , env = env
+            }
 
 
 {-| Call a function with the given arguments.
@@ -46,10 +57,12 @@ apply : Env -> SpExpression -> List SpExpression -> EvalResult
 apply env fun args =
     case fun of
         BuiltinFun builtinFun ->
-            builtinFun args
+            builtinFun env args
 
         _ ->
-            Err "Invalid function form"
+            { result = Err "Invalid function form"
+            , env = env
+            }
 
 
 {-| Evaluate a list of expressions. If any of them fail, stop and provide the failure.
@@ -57,7 +70,8 @@ apply env fun args =
 evalArgs : Env -> List SpExpression -> Result String (List SpExpression)
 evalArgs env exprs =
     let
+        -- TODO(advait): Args might actually modify environment! We need to pipe this through each arg eval.
         evaluatedExprs =
-            List.map (eval env) exprs
+            exprs |> List.map (eval env) |> List.map .result
     in
-    List.foldr (Result.map2 (::)) (Ok []) evaluatedExprs
+    evaluatedExprs |> List.foldr (Result.map2 (::)) (Ok [])

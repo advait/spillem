@@ -38,4 +38,4 @@ testBasic input expected =
                     Expect.fail s
 
                 Ok parsedInput ->
-                    Expect.equal (eval defaultEnv parsedInput) (Ok expected)
+                    Expect.equal (eval defaultEnv parsedInput |> .result) (Ok expected)
