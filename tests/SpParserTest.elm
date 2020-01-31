@@ -9,7 +9,7 @@ import Types exposing (..)
 
 suite : Test
 suite =
-    describe "Parser"
+    describe "parseExpr"
         [ describe "int"
             [ testParse (SpInt 0) "0"
             , testParse (SpInt 120) "120"
@@ -56,7 +56,7 @@ testParseFail input =
 
 doParse : String -> Maybe SpExpression
 doParse input =
-    parse input |> Result.toMaybe
+    parseExpr input |> Result.toMaybe
 
 
 {-| Randomly generates expressions for fuzz testing.

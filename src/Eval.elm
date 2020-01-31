@@ -30,12 +30,25 @@ eval env expr =
             , env = env
             }
 
+        -- Special form for def!
+        SpList [ SpSymbol "def!", SpSymbol key, value ] ->
+            evalAndThen (eval env value)
+                (\newEnv evaluatedValue ->
+                    { result = Ok <| evaluatedValue
+                    , env = newEnv |> Dict.insert key evaluatedValue
+                    }
+                )
+
         -- Function calls first evaluate all of the items in the list and then call the function with the args
         SpList exprs ->
-            case evalArgs env exprs of
+            let
+                ( newEnv, exprsResult ) =
+                    evalList env exprs
+            in
+            case exprsResult of
                 Err err ->
                     { result = Err err
-                    , env = env
+                    , env = newEnv
                     }
 
                 Ok (fun :: args) ->
@@ -67,11 +80,64 @@ apply env fun args =
 
 {-| Evaluate a list of expressions. If any of them fail, stop and provide the failure.
 -}
-evalArgs : Env -> List SpExpression -> Result String (List SpExpression)
-evalArgs env exprs =
+evalList : Env -> List SpExpression -> ( Env, Result String (List SpExpression) )
+evalList env exprs =
     let
-        -- TODO(advait): Args might actually modify environment! We need to pipe this through each arg eval.
-        evaluatedExprs =
-            exprs |> List.map (eval env) |> List.map .result
+        rec acc envRec exprsRec =
+            case exprsRec of
+                [] ->
+                    ( envRec, Ok acc )
+
+                head :: tail ->
+                    let
+                        evaluatedHead =
+                            eval envRec head
+                    in
+                    case evaluatedHead.result of
+                        Err err ->
+                            ( evaluatedHead.env, Err err )
+
+                        Ok ok ->
+                            rec (acc ++ [ ok ]) evaluatedHead.env tail
     in
-    evaluatedExprs |> List.foldr (Result.map2 (::)) (Ok [])
+    rec [] env exprs
+
+
+{-| Evaluates all the expressions, appropriately piping the environment through, and returning the result
+of the last expression or the result of the first failed expression.
+-}
+evalAll : Env -> List SpExpression -> EvalResult
+evalAll env exprs =
+    let
+        ( finalEnv, result ) =
+            evalList env exprs
+
+        lastElem : Result String (List SpExpression) -> EvalResult
+        lastElem elems =
+            case elems of
+                Err err ->
+                    { env = finalEnv, result = Err err }
+
+                Ok [] ->
+                    { env = finalEnv, result = Err "Nothing to evaluate." }
+
+                Ok [ final ] ->
+                    { env = finalEnv, result = Ok final }
+
+                Ok (_ :: tail) ->
+                    lastElem (Ok tail)
+    in
+    lastElem result
+
+
+{-| If the provided result failed, simply provide the failed result. If it succeeded, pipe the new environment to
+evaluate the second expression, returning the result.
+-}
+evalAndThen : EvalResult -> (Env -> SpExpression -> EvalResult) -> EvalResult
+evalAndThen result deferred =
+    case result.result of
+        Ok ok ->
+            deferred result.env ok
+
+        Err err ->
+            { result = Err err, env = result.env }

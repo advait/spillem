@@ -7,13 +7,21 @@ import Types exposing (..)
 
 {-| Parses an input string, potentially returning a parsed SpExpression.
 -}
-parse : String -> Result String SpExpression
-parse input =
+parseExpr : String -> Result String SpExpression
+parseExpr input =
     Parser.run expressionParser input
         |> Result.mapError (always <| "Failed to parse input: " ++ input)
 
 
-spacesOrTabs =
+{-| Parses an input string, potentially returning a list of SpExpressions.
+-}
+parseFile : String -> Result String (List SpExpression)
+parseFile input =
+    Parser.run fileParser input
+        |> Result.mapError (always <| "Failed to parse input: " ++ input)
+
+
+whitespaceOrTabs =
     Parser.chompWhile (\c -> c == ' ' || c == '\t' || c == '\n' || c == '\u{000D}')
 
 
@@ -64,7 +72,7 @@ listParser =
             , separator = ""
             , end = ")"
             , item = expressionParser
-            , spaces = spacesOrTabs
+            , spaces = whitespaceOrTabs
             , trailing = Parser.Optional
             }
 
@@ -81,9 +89,9 @@ expressionParser =
                 )
     in
     Parser.succeed identity
-        |. spacesOrTabs
+        |. whitespaceOrTabs
         |= lazy
-        |. spacesOrTabs
+        |. whitespaceOrTabs
 
 
 {-| Prints an expression out.
@@ -102,3 +110,17 @@ print expr =
 
         BuiltinFun _ ->
             "<builtin>"
+
+
+{-| Parses a file which a sequence of expressions.
+-}
+fileParser : Parser (List SpExpression)
+fileParser =
+    Parser.sequence
+        { start = ""
+        , separator = ""
+        , end = ""
+        , item = expressionParser
+        , spaces = whitespaceOrTabs
+        , trailing = Parser.Optional
+        }
