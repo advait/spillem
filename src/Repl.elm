@@ -23,17 +23,19 @@ main =
 
 
 type alias Model =
-    { lastResult : EvalResult
+    { env : Env
+    , lastResult : Result String SpExpression
     , history : List String
-    , curValue : String
+    , curInputValue : String
     }
 
 
 init : Model
 init =
-    { lastResult = { env = Eval.defaultEnv, result = Ok <| SpInt 99 }
+    { env = Eval.defaultEnv
+    , lastResult = Err "Init"
     , history = []
-    , curValue = ""
+    , curInputValue = ""
     }
 
 
@@ -51,18 +53,32 @@ update msg model =
         SendValue s ->
             case SpParser.parseExpr s of
                 Err err ->
-                    { model | history = model.history ++ [ s, "=>" ++ err ], curValue = "" }
+                    { model
+                        | history = model.history ++ [ s, "=>" ++ err ]
+                        , curInputValue = ""
+                    }
 
                 Ok expr ->
                     let
                         evaluated =
-                            Eval.eval model.lastResult.env expr
+                            Eval.eval model.env expr
                     in
                     { model
-                        | history = model.history ++ [ s, "=>" ++ Debug.toString evaluated.result ]
-                        , lastResult = evaluated
-                        , curValue = ""
+                        | env = evaluated.env
+                        , lastResult = evaluated.result
+                        , history = model.history ++ [ s, "=>" ++ evalResultToString evaluated.result ]
+                        , curInputValue = ""
                     }
+
+
+evalResultToString : Result String SpExpression -> String
+evalResultToString evalResult =
+    case evalResult of
+        Err err ->
+            err
+
+        Ok expr ->
+            SpParser.print expr
 
 
 
@@ -73,7 +89,7 @@ view : Model -> Html Msg
 view model =
     div bodyClass
         [ div [] (model.history |> List.map (\s -> div rowClass [ text s ]))
-        , div rowClass [ input (inputClass ++ [ sendStringOnEnter, value model.curValue ]) [] ]
+        , div rowClass [ input (inputClass ++ [ sendStringOnEnter, value model.curInputValue ]) [] ]
         ]
 
 
