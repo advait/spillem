@@ -1,7 +1,13 @@
 module Eval exposing (..)
 
 import Dict exposing (Dict)
+import Stdlib
 import Types exposing (..)
+
+
+defaultEnv : Env
+defaultEnv =
+    Stdlib.lib
 
 
 {-| Evaluate an expression in the context of an environment, producing a result.

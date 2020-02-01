@@ -1,10 +1,13 @@
 module Repl exposing (..)
 
 import Browser
-import Html exposing (Attribute, Html, button, div, input, text)
-import Html.Attributes exposing (autofocus, style)
-import Html.Events exposing (keyCode, on, onClick)
+import Eval
+import Html exposing (Attribute, Html, div, input, text)
+import Html.Attributes exposing (autofocus, style, value)
+import Html.Events exposing (keyCode, on)
 import Json.Decode as Json
+import SpParser
+import Types exposing (..)
 
 
 
@@ -20,12 +23,18 @@ main =
 
 
 type alias Model =
-    Int
+    { lastResult : EvalResult
+    , history : List String
+    , curValue : String
+    }
 
 
 init : Model
 init =
-    0
+    { lastResult = { env = Eval.defaultEnv, result = Ok <| SpInt 99 }
+    , history = []
+    , curValue = ""
+    }
 
 
 
@@ -33,18 +42,27 @@ init =
 
 
 type Msg
-    = Increment
-    | Decrement
+    = SendValue String
 
 
 update : Msg -> Model -> Model
 update msg model =
     case msg of
-        Increment ->
-            model + 1
+        SendValue s ->
+            case SpParser.parseExpr s of
+                Err err ->
+                    { model | history = model.history ++ [ s, "=>" ++ err ], curValue = "" }
 
-        Decrement ->
-            model - 1
+                Ok expr ->
+                    let
+                        evaluated =
+                            Eval.eval model.lastResult.env expr
+                    in
+                    { model
+                        | history = model.history ++ [ s, "=>" ++ Debug.toString evaluated.result ]
+                        , lastResult = evaluated
+                        , curValue = ""
+                    }
 
 
 
@@ -54,10 +72,29 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div bodyClass
-        [ div [] [ text (String.fromInt model) ]
-        , div rowClass [ text "Hello World" ]
-        , div rowClass [ input (inputClass ++ [ onEnter Increment ]) [] ]
+        [ div [] (model.history |> List.map (\s -> div rowClass [ text s ]))
+        , div rowClass [ input (inputClass ++ [ sendStringOnEnter, value model.curValue ]) [] ]
         ]
+
+
+sendStringOnEnter : Attribute Msg
+sendStringOnEnter =
+    let
+        isEnter code =
+            if code == 13 then
+                Debug.log "keys" <| Json.succeed ()
+
+            else
+                Json.fail "not ENTER"
+
+        getText =
+            Json.at [ "target", "value" ] Json.string
+                |> Json.map SendValue
+
+        both =
+            Json.map2 (\_ save -> save) (keyCode |> Json.andThen isEnter) getText
+    in
+    on "keydown" both
 
 
 colorClass =
@@ -91,7 +128,7 @@ bodyClass =
 
 rowClass : List (Attribute msg)
 rowClass =
-    []
+    [ style "padding-top" "2px" ]
 
 
 inputClass =
@@ -104,16 +141,3 @@ inputClass =
            , style "margin" "0"
            , autofocus True
            ]
-
-
-onEnter : Msg -> Attribute Msg
-onEnter msg =
-    let
-        isEnter code =
-            if code == 13 then
-                Json.succeed msg
-
-            else
-                Json.fail "not ENTER"
-    in
-    on "keydown" (Json.andThen isEnter keyCode)
