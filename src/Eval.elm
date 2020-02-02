@@ -69,6 +69,12 @@ eval env expr =
             , env = env
             }
 
+        -- SpNothing evaluates to itself
+        SpNothing ->
+            { result = Ok <| SpNothing
+            , env = env
+            }
+
 
 {-| Call a function with the given arguments.
 -}

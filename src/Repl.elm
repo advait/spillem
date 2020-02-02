@@ -33,7 +33,7 @@ type alias Model =
 init : Model
 init =
     { env = Eval.defaultEnv
-    , lastResult = Err "Init"
+    , lastResult = Ok SpNothing
     , history = []
     , curInputValue = ""
     }

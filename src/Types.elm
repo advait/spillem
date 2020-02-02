@@ -14,6 +14,7 @@ type SpExpression
     | SpSymbol SpSymbol
     | SpList (List SpExpression)
     | BuiltinFun (Env -> List SpExpression -> EvalResult)
+    | SpNothing
 
 
 {-| An Environment is a mapping of Symbols to expressions.

@@ -13,12 +13,13 @@ parseExpr input =
         |> Result.mapError (always <| "Failed to parse input: " ++ input)
 
 
-{-| Parses an input string, potentially returning a list of SpExpressions.
+{-| Parses an input string, potentially returning a list of SpExpressions. All comments are stripped.
 -}
 parseFile : String -> Result String (List SpExpression)
 parseFile input =
     Parser.run fileParser input
         |> Result.mapError (always <| "Failed to parse input: " ++ input)
+        |> Result.map (List.filter ((/=) SpNothing))
 
 
 whitespaceOrTabs =
@@ -77,6 +78,12 @@ listParser =
             }
 
 
+commentParser : Parser SpExpression
+commentParser =
+    Parser.succeed SpNothing
+        |. Parser.lineComment ";"
+
+
 {-| Parses an arbitrary SpExpression including nested lists. Strips the whitespace surrounding the expression.
 -}
 expressionParser : Parser SpExpression
@@ -85,7 +92,7 @@ expressionParser =
         lazy =
             Parser.lazy
                 (\_ ->
-                    Parser.oneOf [ intParser, symbolParser, listParser ]
+                    Parser.oneOf [ intParser, symbolParser, listParser, commentParser ]
                 )
     in
     Parser.succeed identity
@@ -110,6 +117,9 @@ print expr =
 
         BuiltinFun _ ->
             "<builtin>"
+
+        SpNothing ->
+            ""
 
 
 {-| Parses a file which a sequence of expressions.
