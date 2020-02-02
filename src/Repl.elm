@@ -134,9 +134,10 @@ bodyClass =
            , style "color" "#cfd2d0"
            , style "position" "absolute"
            , style "top" "0"
-           , style "bottom" "0"
+           , style "height" "100%"
            , style "left" "0"
-           , style "right" "0"
+           , style "width" "100%"
+           , style "overflow" "scroll"
            , style "padding-top" "5px"
            , style "padding-left" "5px"
            ]
