@@ -88,8 +88,10 @@ evalResultToString evalResult =
 view : Model -> Html Msg
 view model =
     div bodyClass
-        [ div [] (model.history |> List.map (\s -> div rowClass [ text s ]))
-        , div rowClass [ input (inputClass ++ [ sendStringOnEnter, value model.curInputValue ]) [] ]
+        [ div []
+            [ div [] (model.history |> List.map (\s -> div rowClass [ text s ]))
+            , div rowClass [ input (inputClass ++ [ sendStringOnEnter, value model.curInputValue ]) [] ]
+            ]
         ]
 
 
@@ -138,6 +140,8 @@ bodyClass =
            , style "left" "0"
            , style "width" "100%"
            , style "overflow" "scroll"
+           , style "display" "flex"
+           , style "flex-direction" "column-reverse"
            , style "padding-top" "5px"
            , style "padding-left" "5px"
            ]
