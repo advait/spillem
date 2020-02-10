@@ -13,7 +13,7 @@ type SpExpression
     = SpInt Int
     | SpSymbol SpSymbol
     | SpList (List SpExpression)
-    | BuiltinFun (Env -> List SpExpression -> EvalResult)
+    | BuiltinFun (SpState -> List SpExpression -> SpState)
     | SpNothing
 
 
@@ -23,10 +23,10 @@ type alias Env =
     Dict SpSymbol SpExpression
 
 
-{-| An EvalResult is the result of evaluating an expression. If successful it is another expression and a new
-environment. If unsuccessful the result is a String describing the error.
+{-| Represents the entire state of the interpreter. The result represents the result of evaluating
+the last expression.
 -}
-type alias EvalResult =
+type alias SpState =
     { result : Result String SpExpression
     , env : Env
     }

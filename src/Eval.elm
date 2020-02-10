@@ -5,40 +5,36 @@ import Stdlib
 import Types exposing (..)
 
 
-defaultEnv : Env
-defaultEnv =
-    Stdlib.lib
+initState : SpState
+initState =
+    { env = Stdlib.lib, result = Ok SpNothing }
 
 
 {-| Evaluate an expression in the context of an environment, producing a result.
 -}
-eval : Env -> SpExpression -> EvalResult
-eval env expr =
+eval : SpState -> SpExpression -> SpState
+eval state expr =
     case expr of
         -- Integers evaluate to themselves
         SpInt i ->
-            { result = Ok <| SpInt i
-            , env = env
-            }
+            { state | result = Ok <| SpInt i }
 
         -- Evaluating symbols dereferences the symbols in the environment
         SpSymbol s ->
-            { result =
-                env
-                    |> Dict.get s
-                    |> Result.fromMaybe ("ReferenceError: " ++ s)
-            , env = env
+            { state
+                | result =
+                    state.env
+                        |> Dict.get s
+                        |> Result.fromMaybe ("ReferenceError: " ++ s)
             }
 
         -- Empty list evaluates to itself
         SpList [] ->
-            { result = Ok <| SpList []
-            , env = env
-            }
+            { state | result = Ok <| SpList [] }
 
         -- Special form for def!
         SpList [ SpSymbol "def!", SpSymbol key, value ] ->
-            evalAndThen (eval env value)
+            evalAndThen (eval state value)
                 (\newEnv evaluatedValue ->
                     { result = Ok <| evaluatedValue
                     , env = newEnv |> Dict.insert key evaluatedValue
@@ -48,93 +44,90 @@ eval env expr =
         -- Function calls first evaluate all of the items in the list and then call the function with the args
         SpList exprs ->
             let
-                ( newEnv, exprsResult ) =
-                    evalList env exprs
+                ( finalState, exprsResult ) =
+                    evalList state exprs
             in
             case exprsResult of
+                -- Failed to evaluate one of the arguments
                 Err err ->
-                    { result = Err err
-                    , env = newEnv
-                    }
+                    { finalState | result = Err err }
 
+                -- Successfully evaluated all arguments. Now apply function with evaluated arguments.
                 Ok (fun :: args) ->
-                    apply env fun args
+                    apply finalState fun args
 
                 Ok [] ->
                     Debug.todo "Will never happen. Handled by 'SpList []' case above."
 
         -- Builtins evaluate to themselves
         BuiltinFun f ->
-            { result = Ok <| BuiltinFun f
-            , env = env
-            }
+            { state | result = Ok <| BuiltinFun f }
 
         -- SpNothing evaluates to itself
         SpNothing ->
-            { result = Ok <| SpNothing
-            , env = env
-            }
+            { state | result = Ok <| SpNothing }
 
 
 {-| Call a function with the given arguments.
 -}
-apply : Env -> SpExpression -> List SpExpression -> EvalResult
-apply env fun args =
+apply : SpState -> SpExpression -> List SpExpression -> SpState
+apply state fun args =
     case fun of
         BuiltinFun builtinFun ->
-            builtinFun env args
+            builtinFun state args
 
         _ ->
-            { result = Err "Invalid function form"
-            , env = env
+            { state
+                | result = Err "Invalid function form"
             }
 
 
 {-| Evaluate a list of expressions. If any of them fail, stop and provide the failure.
 -}
-evalList : Env -> List SpExpression -> ( Env, Result String (List SpExpression) )
-evalList env exprs =
+evalList : SpState -> List SpExpression -> ( SpState, Result String (List SpExpression) )
+evalList state exprs =
     let
-        rec acc envRec exprsRec =
+        rec : List SpExpression -> SpState -> List SpExpression -> ( SpState, Result String (List SpExpression) )
+        rec acc stateRec exprsRec =
             case exprsRec of
                 [] ->
-                    ( envRec, Ok acc )
+                    ( stateRec, Ok acc )
 
                 head :: tail ->
                     let
                         evaluatedHead =
-                            eval envRec head
+                            eval stateRec head
                     in
                     case evaluatedHead.result of
                         Err err ->
-                            ( evaluatedHead.env, Err err )
+                            ( evaluatedHead, Err err )
 
                         Ok ok ->
-                            rec (acc ++ [ ok ]) evaluatedHead.env tail
+                            rec (acc ++ [ ok ]) evaluatedHead tail
     in
-    rec [] env exprs
+    rec [] state exprs
 
 
 {-| Evaluates all the expressions, appropriately piping the environment through, and returning the result
 of the last expression or the result of the first failed expression.
 -}
-evalAll : Env -> List SpExpression -> EvalResult
-evalAll env exprs =
+evalAll : SpState -> List SpExpression -> SpState
+evalAll state exprs =
     let
-        ( finalEnv, result ) =
-            evalList env exprs
+        ( finalState, result ) =
+            evalList state exprs
 
-        lastElem : Result String (List SpExpression) -> EvalResult
+        lastElem : Result String (List SpExpression) -> SpState
         lastElem elems =
             case elems of
                 Err err ->
-                    { env = finalEnv, result = Err err }
+                    { finalState | result = Err err }
 
                 Ok [] ->
-                    { env = finalEnv, result = Err "Nothing to evaluate." }
+                    { finalState | result = Err "Nothing to evaluate." }
 
                 Ok [ final ] ->
-                    { env = finalEnv, result = Ok final }
+                    { finalState | result = Ok final }
 
                 Ok (_ :: tail) ->
                     lastElem (Ok tail)
@@ -145,7 +138,7 @@ evalAll env exprs =
 {-| If the provided result failed, simply provide the failed result. If it succeeded, pipe the new environment to
 evaluate the second expression, returning the result.
 -}
-evalAndThen : EvalResult -> (Env -> SpExpression -> EvalResult) -> EvalResult
+evalAndThen : SpState -> (Env -> SpExpression -> SpState) -> SpState
 evalAndThen result deferred =
     case result.result of
         Ok ok ->

@@ -23,8 +23,7 @@ main =
 
 
 type alias Model =
-    { env : Env
-    , lastResult : Result String SpExpression
+    { state : SpState
     , history : List String
     , curInputValue : String
     }
@@ -32,8 +31,7 @@ type alias Model =
 
 init : Model
 init =
-    { env = Eval.defaultEnv
-    , lastResult = Ok SpNothing
+    { state = Eval.defaultEnv
     , history = []
     , curInputValue = ""
     }

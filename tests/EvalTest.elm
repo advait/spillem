@@ -32,10 +32,6 @@ suite =
         ]
 
 
-defaultEnv =
-    Stdlib.lib
-
-
 {-| Test the evaluation of a single expression, ignoring the environment.
 -}
 testSingle : String -> SpExpression -> Test
@@ -51,7 +47,7 @@ testSingle input expected =
                     Expect.fail s
 
                 Ok parsedInput ->
-                    Expect.equal (eval defaultEnv parsedInput |> .result) (Ok expected)
+                    Expect.equal (eval Eval.initState parsedInput |> .result) (Ok expected)
 
 
 {-| Test the evaluation of a sequence of expressions, asserting the final value matches the provided SpExpression.
@@ -69,4 +65,4 @@ testAll input expected =
                     Expect.fail s
 
                 Ok parsedInput ->
-                    Expect.equal (evalAll defaultEnv parsedInput |> .result) (Ok expected)
+                    Expect.equal (evalAll Eval.initState parsedInput |> .result) (Ok expected)
