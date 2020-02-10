@@ -31,7 +31,7 @@ type alias Model =
 
 init : Model
 init =
-    { state = Eval.defaultEnv
+    { state = Eval.initState
     , history = []
     , curInputValue = ""
     }
@@ -58,13 +58,12 @@ update msg model =
 
                 Ok expr ->
                     let
-                        evaluated =
-                            Eval.eval model.env expr
+                        nextState =
+                            Eval.eval model.state expr
                     in
                     { model
-                        | env = evaluated.env
-                        , lastResult = evaluated.result
-                        , history = model.history ++ [ s, "=>" ++ evalResultToString evaluated.result ]
+                        | state = nextState
+                        , history = model.history ++ [ s, "=>" ++ evalResultToString nextState.result ]
                         , curInputValue = ""
                     }
 

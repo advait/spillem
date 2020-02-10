@@ -8,6 +8,9 @@ import Test exposing (Test, test)
 import Types exposing (..)
 
 
+{-| Helper function that parses a Spillem program with assertion comments and
+returns a list of Tests corresponding to each assertion.
+-}
 parseSession : String -> List Test
 parseSession input =
     let
