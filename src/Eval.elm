@@ -1,8 +1,6 @@
 module Eval exposing (..)
 
-import Dict exposing (Dict)
 import Env
-import Stdlib
 import Types exposing (..)
 
 
@@ -12,6 +10,7 @@ initState =
 
 
 {-| Evaluate an expression in the context of an environment, producing a result.
+TODO(advait): Change argument order of eval to best support chaining.
 -}
 eval : SpState -> SpExpression -> SpState
 eval state expr =
@@ -41,6 +40,40 @@ eval state expr =
                     , env = newEnv |> Env.setGlobal key evaluatedValue
                     }
                 )
+
+        -- Special form for let* bindings
+        SpList ((SpSymbol "let*") :: (SpList allBindings) :: [ returnValue ]) ->
+            let
+                insertBinding : SpSymbol -> Env -> SpExpression -> SpState
+                insertBinding key env value =
+                    { env = env |> Env.setLocal key value
+                    , result = Ok <| value
+                    }
+
+                processBindings : List SpExpression -> SpState -> SpState
+                processBindings bindings inState =
+                    case bindings of
+                        (SpSymbol symbol) :: value :: tail ->
+                            evalAndThen (eval inState value) (insertBinding symbol)
+                                |> processBindings tail
+
+                        [] ->
+                            inState
+
+                        _ ->
+                            { inState | result = Err "Incorrect let* syntax" }
+
+                statePushScope s =
+                    { s | env = s.env |> Env.pushScope }
+
+                statePopScope s =
+                    { s | env = s.env |> Env.popScope }
+            in
+            state
+                |> statePushScope
+                |> processBindings allBindings
+                |> evalIfNotError returnValue
+                |> statePopScope
 
         -- Function calls first evaluate all of the items in the list and then call the function with the args
         SpList exprs ->
@@ -147,3 +180,15 @@ evalAndThen result deferred =
 
         Err err ->
             { result = Err err, env = result.env }
+
+
+{-| Evaluate the given expression only if the current state is not an error. Useful for chaining.
+-}
+evalIfNotError : SpExpression -> SpState -> SpState
+evalIfNotError expr state =
+    case state.result of
+        Err _ ->
+            state
+
+        _ ->
+            eval state expr
