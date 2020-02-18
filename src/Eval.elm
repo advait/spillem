@@ -1,13 +1,14 @@
 module Eval exposing (..)
 
 import Dict exposing (Dict)
+import Env
 import Stdlib
 import Types exposing (..)
 
 
 initState : SpState
 initState =
-    { env = Stdlib.lib, result = Ok SpNothing }
+    { env = Env.defaultEnv, result = Ok SpNothing }
 
 
 {-| Evaluate an expression in the context of an environment, producing a result.
@@ -24,7 +25,7 @@ eval state expr =
             { state
                 | result =
                     state.env
-                        |> Dict.get s
+                        |> Env.lookupSymbol s
                         |> Result.fromMaybe ("ReferenceError: " ++ s)
             }
 
@@ -37,7 +38,7 @@ eval state expr =
             evalAndThen (eval state value)
                 (\newEnv evaluatedValue ->
                     { result = Ok <| evaluatedValue
-                    , env = newEnv |> Dict.insert key evaluatedValue
+                    , env = newEnv |> Env.setGlobal key evaluatedValue
                     }
                 )
 

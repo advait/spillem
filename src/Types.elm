@@ -17,10 +17,15 @@ type SpExpression
     | SpNothing
 
 
-{-| An Environment is a mapping of Symbols to expressions.
+{-| An Env is a linked-list of scopes where a scope is a dict of variable bindings from SpSymbol
+to SpExpression. The head of the linked list is the inner-most scope. The Env always has at least
+one scope in it (the global scope).
 -}
-type alias Env =
-    Dict SpSymbol SpExpression
+type Env
+    = Env
+        { bindings : Dict SpSymbol SpExpression
+        , parentScope : Maybe Env
+        }
 
 
 {-| Represents the entire state of the interpreter. The result represents the result of evaluating
