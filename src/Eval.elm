@@ -19,14 +19,18 @@ eval state expr =
         SpInt i ->
             { state | result = Ok <| SpInt i }
 
-        -- Evaluating symbols dereferences the symbols in the environment
+        -- Evaluating symbols dereferences the symbols in the environment unless it is a special reserved symbol
         SpSymbol s ->
-            { state
-                | result =
-                    state.env
-                        |> Env.lookupSymbol s
-                        |> Result.fromMaybe ("ReferenceError: " ++ s)
-            }
+            if List.member s [ "true", "false", "nil" ] then
+                { state | result = Ok <| SpSymbol s }
+
+            else
+                { state
+                    | result =
+                        state.env
+                            |> Env.lookupSymbol s
+                            |> Result.fromMaybe ("ReferenceError: " ++ s)
+                }
 
         -- Empty list evaluates to itself
         SpList [] ->
@@ -34,19 +38,20 @@ eval state expr =
 
         -- Special form for def!
         SpList [ SpSymbol "def!", SpSymbol key, value ] ->
-            evalAndThen (eval state value)
-                (\newEnv evaluatedValue ->
-                    { result = Ok <| evaluatedValue
-                    , env = newEnv |> Env.setGlobal key evaluatedValue
-                    }
-                )
+            eval state value
+                |> evalAndThen
+                    (\evaluatedValue newState ->
+                        { result = Ok <| evaluatedValue
+                        , env = newState.env |> Env.setGlobal key evaluatedValue
+                        }
+                    )
 
         -- Special form for let* bindings
         SpList ((SpSymbol "let*") :: (SpList allBindings) :: [ returnValue ]) ->
             let
-                insertBinding : SpSymbol -> Env -> SpExpression -> SpState
-                insertBinding key env value =
-                    { env = env |> Env.setLocal key value
+                insertBinding : SpSymbol -> SpExpression -> SpState -> SpState
+                insertBinding key value nextState =
+                    { env = nextState.env |> Env.setLocal key value
                     , result = Ok <| value
                     }
 
@@ -54,26 +59,37 @@ eval state expr =
                 processBindings bindings inState =
                     case bindings of
                         (SpSymbol symbol) :: value :: tail ->
-                            evalAndThen (eval inState value) (insertBinding symbol)
-                                |> processBindings tail
+                            eval inState value
+                                |> evalAndThen (insertBinding symbol)
+                                |> evalAndThen (\_ -> processBindings tail)
 
                         [] ->
                             inState
 
                         _ ->
                             { inState | result = Err "Incorrect let* syntax" }
-
-                statePushScope s =
-                    { s | env = s.env |> Env.pushScope }
-
-                statePopScope s =
-                    { s | env = s.env |> Env.popScope }
             in
             state
-                |> statePushScope
+                |> (\s -> { s | env = s.env |> Env.pushScope })
                 |> processBindings allBindings
                 |> evalIfNotError returnValue
-                |> statePopScope
+                |> (\s -> { s | env = s.env |> Env.popScope })
+
+        -- Special form for do
+        SpList ((SpSymbol "do") :: exprs) ->
+            exprs |> List.foldl evalIfNotError { state | result = Ok <| SpNothing }
+
+        -- Special form for if with three arguments
+        SpList [ SpSymbol "if", cond, ifTrue, ifFalse ] ->
+            eval state cond
+                |> evalAndThen
+                    (\evaluatedCond nextState ->
+                        if evaluatedCond == SpSymbol "false" || evaluatedCond == SpSymbol "nil" then
+                            eval nextState ifFalse
+
+                        else
+                            eval nextState ifTrue
+                    )
 
         -- Function calls first evaluate all of the items in the list and then call the function with the args
         SpList exprs ->
@@ -172,11 +188,11 @@ evalAll state exprs =
 {-| If the provided result failed, simply provide the failed result. If it succeeded, pipe the new environment to
 evaluate the second expression, returning the result.
 -}
-evalAndThen : SpState -> (Env -> SpExpression -> SpState) -> SpState
-evalAndThen result deferred =
+evalAndThen : (SpExpression -> SpState -> SpState) -> SpState -> SpState
+evalAndThen deferred result =
     case result.result of
         Ok ok ->
-            deferred result.env ok
+            deferred ok result
 
         Err err ->
             { result = Err err, env = result.env }
