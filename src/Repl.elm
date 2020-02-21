@@ -59,7 +59,7 @@ update msg model =
                 Ok expr ->
                     let
                         nextState =
-                            Eval.eval model.state expr
+                            Eval.eval expr model.state
                     in
                     { model
                         | state = nextState

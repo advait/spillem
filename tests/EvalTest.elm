@@ -47,7 +47,7 @@ testSingle input expected =
                     Expect.fail s
 
                 Ok parsedInput ->
-                    Expect.equal (eval Eval.initState parsedInput |> .result) (Ok expected)
+                    Expect.equal (eval parsedInput Eval.initState |> .result) (Ok expected)
 
 
 {-| Test the evaluation of a sequence of expressions, asserting the final value matches the provided SpExpression.
@@ -65,4 +65,4 @@ testAll input expected =
                     Expect.fail s
 
                 Ok parsedInput ->
-                    Expect.equal (evalAll Eval.initState parsedInput |> .result) (Ok expected)
+                    Expect.equal (evalAll parsedInput Eval.initState |> .result) (Ok expected)

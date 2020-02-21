@@ -12,8 +12,8 @@ initState =
 {-| Evaluate an expression in the context of an environment, producing a result.
 TODO(advait): Change argument order of eval to best support chaining.
 -}
-eval : SpState -> SpExpression -> SpState
-eval state expr =
+eval : SpExpression -> SpState -> SpState
+eval expr state =
     case expr of
         -- Integers evaluate to themselves
         SpInt i ->
@@ -38,7 +38,7 @@ eval state expr =
 
         -- Special form for def!
         SpList [ SpSymbol "def!", SpSymbol key, value ] ->
-            eval state value
+            eval value state
                 |> evalAndThen
                     (\evaluatedValue newState ->
                         { result = Ok <| evaluatedValue
@@ -59,7 +59,7 @@ eval state expr =
                 processBindings bindings inState =
                     case bindings of
                         (SpSymbol symbol) :: value :: tail ->
-                            eval inState value
+                            eval value inState
                                 |> evalAndThen (insertBinding symbol)
                                 |> evalAndThen (\_ -> processBindings tail)
 
@@ -81,21 +81,21 @@ eval state expr =
 
         -- Special form for if with three arguments
         SpList [ SpSymbol "if", cond, ifTrue, ifFalse ] ->
-            eval state cond
+            eval cond state
                 |> evalAndThen
                     (\evaluatedCond nextState ->
                         if evaluatedCond == SpSymbol "false" || evaluatedCond == SpSymbol "nil" then
-                            eval nextState ifFalse
+                            eval ifFalse nextState
 
                         else
-                            eval nextState ifTrue
+                            eval ifTrue nextState
                     )
 
         -- Function calls first evaluate all of the items in the list and then call the function with the args
         SpList exprs ->
             let
                 ( finalState, exprsResult ) =
-                    evalList state exprs
+                    evalList exprs state
             in
             case exprsResult of
                 -- Failed to evaluate one of the arguments
@@ -104,7 +104,7 @@ eval state expr =
 
                 -- Successfully evaluated all arguments. Now apply function with evaluated arguments.
                 Ok (fun :: args) ->
-                    apply finalState fun args
+                    apply fun args finalState
 
                 Ok [] ->
                     Debug.todo "Will never happen. Handled by 'SpList []' case above."
@@ -120,8 +120,8 @@ eval state expr =
 
 {-| Call a function with the given arguments.
 -}
-apply : SpState -> SpExpression -> List SpExpression -> SpState
-apply state fun args =
+apply : SpExpression -> List SpExpression -> SpState -> SpState
+apply fun args state =
     case fun of
         BuiltinFun builtinFun ->
             builtinFun state args
@@ -134,11 +134,11 @@ apply state fun args =
 
 {-| Evaluate a list of expressions. If any of them fail, stop and provide the failure.
 -}
-evalList : SpState -> List SpExpression -> ( SpState, Result String (List SpExpression) )
-evalList state exprs =
+evalList : List SpExpression -> SpState -> ( SpState, Result String (List SpExpression) )
+evalList exprs state =
     let
-        rec : List SpExpression -> SpState -> List SpExpression -> ( SpState, Result String (List SpExpression) )
-        rec acc stateRec exprsRec =
+        rec : List SpExpression -> List SpExpression -> SpState -> ( SpState, Result String (List SpExpression) )
+        rec acc exprsRec stateRec =
             case exprsRec of
                 [] ->
                     ( stateRec, Ok acc )
@@ -146,26 +146,26 @@ evalList state exprs =
                 head :: tail ->
                     let
                         evaluatedHead =
-                            eval stateRec head
+                            eval head stateRec
                     in
                     case evaluatedHead.result of
                         Err err ->
                             ( evaluatedHead, Err err )
 
                         Ok ok ->
-                            rec (acc ++ [ ok ]) evaluatedHead tail
+                            rec (acc ++ [ ok ]) tail evaluatedHead
     in
-    rec [] state exprs
+    rec [] exprs state
 
 
 {-| Evaluates all the expressions, appropriately piping the environment through, and returning the result
 of the last expression or the result of the first failed expression.
 -}
-evalAll : SpState -> List SpExpression -> SpState
-evalAll state exprs =
+evalAll : List SpExpression -> SpState -> SpState
+evalAll exprs state =
     let
         ( finalState, result ) =
-            evalList state exprs
+            evalList exprs state
 
         lastElem : Result String (List SpExpression) -> SpState
         lastElem elems =
@@ -207,4 +207,4 @@ evalIfNotError expr state =
             state
 
         _ ->
-            eval state expr
+            eval expr state

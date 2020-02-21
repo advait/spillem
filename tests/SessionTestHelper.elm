@@ -30,7 +30,7 @@ parseSession input =
                 (Expr expr) :: tail ->
                     let
                         nextState =
-                            Eval.eval state expr
+                            Eval.eval expr state
                     in
                     case nextState.result of
                         Err err ->
