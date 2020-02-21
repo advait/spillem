@@ -13,7 +13,7 @@ type SpExpression
     = SpInt Int
     | SpSymbol SpSymbol
     | SpList (List SpExpression)
-    | BuiltinFun (SpState -> List SpExpression -> SpState)
+    | BuiltinFun (List SpExpression -> SpState -> SpState)
     | SpNothing
 
 

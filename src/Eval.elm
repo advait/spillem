@@ -124,7 +124,7 @@ apply : SpExpression -> List SpExpression -> SpState -> SpState
 apply fun args state =
     case fun of
         BuiltinFun builtinFun ->
-            builtinFun state args
+            builtinFun args state
 
         _ ->
             { state
