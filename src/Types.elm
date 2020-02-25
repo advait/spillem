@@ -35,3 +35,21 @@ type alias SpState =
     { result : Result String SpExpression
     , env : Env
     }
+
+
+{-| Represents boolean true.
+-}
+spTrue =
+    SpSymbol "true"
+
+
+{-| Represents boolean false.
+-}
+spFalse =
+    SpSymbol "false"
+
+
+{-| Represents nil.
+-}
+spNil =
+    SpSymbol "nil"

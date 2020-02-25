@@ -21,8 +21,8 @@ eval expr state =
 
         -- Evaluating symbols dereferences the symbols in the environment unless it is a special reserved symbol
         SpSymbol s ->
-            if List.member s [ "true", "false", "nil" ] then
-                { state | result = Ok <| SpSymbol s }
+            if List.member expr [ spTrue, spFalse, spNil ] then
+                { state | result = Ok expr }
 
             else
                 { state
@@ -84,7 +84,7 @@ eval expr state =
             eval cond state
                 |> evalAndThen
                     (\evaluatedCond nextState ->
-                        if evaluatedCond == SpSymbol "false" || evaluatedCond == SpSymbol "nil" then
+                        if evaluatedCond == spFalse || evaluatedCond == spNil then
                             eval ifFalse nextState
 
                         else
