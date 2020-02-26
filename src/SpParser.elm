@@ -118,6 +118,9 @@ print expr =
         BuiltinFun _ ->
             "<builtin>"
 
+        ClosureFun _ _ _ ->
+            "<function>"
+
         SpNothing ->
             ""
 

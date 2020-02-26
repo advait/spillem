@@ -75,6 +75,28 @@ eval expr state =
                 |> evalIfNotError returnValue
                 |> (\s -> { s | env = s.env |> Env.popScope })
 
+        -- Special form for fn* function closure definitions
+        SpList [ SpSymbol "fn*", SpList args, body ] ->
+            let
+                processArgs : List SpExpression -> Result String (List SpSymbol)
+                processArgs inArgs =
+                    case inArgs of
+                        (SpSymbol symbol) :: tail ->
+                            Result.map2 (::) (Ok symbol) (processArgs tail)
+
+                        [] ->
+                            Ok []
+
+                        _ ->
+                            Err "Invalid function argument"
+            in
+            case processArgs args of
+                Ok processedArgs ->
+                    { state | result = Ok (ClosureFun state.env processedArgs body) }
+
+                Err err ->
+                    { state | result = Err err }
+
         -- Special form for do
         SpList ((SpSymbol "do") :: exprs) ->
             exprs |> List.foldl evalIfNotError { state | result = Ok <| SpNothing }
@@ -110,21 +132,57 @@ eval expr state =
                     Debug.todo "Will never happen. Handled by 'SpList []' case above."
 
         -- Builtins evaluate to themselves
-        BuiltinFun f ->
-            { state | result = Ok <| BuiltinFun f }
+        BuiltinFun _ ->
+            { state | result = Ok <| expr }
+
+        -- Function closures evaluate to themselves
+        ClosureFun _ _ _ ->
+            { state | result = Ok <| expr }
 
         -- SpNothing evaluates to itself
         SpNothing ->
-            { state | result = Ok <| SpNothing }
+            { state | result = Ok <| expr }
 
 
 {-| Call a function with the given arguments.
 -}
 apply : SpExpression -> List SpExpression -> SpState -> SpState
-apply fun args state =
+apply fun callArgs state =
     case fun of
         BuiltinFun builtinFun ->
-            builtinFun args state
+            builtinFun callArgs state
+
+        ClosureFun closureEnv funArgs body ->
+            let
+                insertBinding : SpSymbol -> SpExpression -> SpState -> SpState
+                insertBinding key value nextState =
+                    { env = nextState.env |> Env.setLocal key value
+                    , result = Ok <| value
+                    }
+
+                processBindings : List SpSymbol -> List SpExpression -> SpState -> SpState
+                processBindings names values inState =
+                    case ( names, values ) of
+                        ( name :: namesTail, value :: valuesTail ) ->
+                            eval value inState
+                                |> evalAndThen (insertBinding name)
+                                |> evalAndThen (\_ -> processBindings namesTail valuesTail)
+
+                        ( [], [] ) ->
+                            inState
+
+                        _ ->
+                            { inState | result = Err "Invalid number of arguments" }
+            in
+            { state | env = closureEnv }
+                |> (\s -> { s | env = s.env |> Env.pushScope })
+                |> processBindings funArgs callArgs
+                |> evalIfNotError body
+                -- Restore the original environment
+                -- TODO(advait): There is a bug here. If the function body evaluation imperatively modifies the
+                -- environment (def!), then we blow away those modifications when we restore the original env here.
+                -- The ideal fix is to keep track of global/imperative state separately from closures.
+                |> (\s -> { s | env = state.env })
 
         _ ->
             { state

@@ -14,6 +14,7 @@ type SpExpression
     | SpSymbol SpSymbol
     | SpList (List SpExpression)
     | BuiltinFun (List SpExpression -> SpState -> SpState)
+    | ClosureFun Env (List SpSymbol) SpExpression
     | SpNothing
 
 
