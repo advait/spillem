@@ -46,7 +46,7 @@ symbolParser : Parser SpExpression
 symbolParser =
     let
         allowedSymbolChars =
-            "!@#$%^&*-+/,~_" |> String.toList
+            "!@#$%^&*-+/,~_?=" |> String.toList
 
         symbolStart c =
             Char.isAlpha c || List.member c allowedSymbolChars

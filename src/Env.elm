@@ -1,18 +1,7 @@
 module Env exposing (..)
 
 import Dict exposing (Dict)
-import Stdlib
 import Types exposing (..)
-
-
-{-| The default vanilla environment.
--}
-defaultEnv : Env
-defaultEnv =
-    Env
-        { bindings = Stdlib.lib
-        , parentScope = Nothing
-        }
 
 
 {-| Sets the given binding in the global (outer-most) scope.

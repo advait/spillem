@@ -1,12 +1,34 @@
 module Eval exposing (..)
 
+import Core
 import Env
+import Stdlib
 import Types exposing (..)
 
 
+{-| The default vanilla environment.
+-}
 initState : SpState
 initState =
-    { env = Env.defaultEnv, result = Ok SpNothing }
+    let
+        baseEnv =
+            Env
+                { bindings = Stdlib.lib
+                , parentScope = Nothing
+                }
+
+        baseState =
+            { env = baseEnv, result = Ok SpNothing }
+
+        evaluatedCore =
+            evalAll Core.core baseState
+    in
+    case evaluatedCore.result of
+        Ok _ ->
+            { evaluatedCore | result = Ok SpNothing }
+
+        Err err ->
+            Debug.todo err
 
 
 {-| Evaluate an expression in the context of an environment, producing a result.
@@ -112,6 +134,10 @@ eval expr state =
                         else
                             eval ifTrue nextState
                     )
+
+        -- Special form for quote
+        SpList [ SpSymbol "quote", quoted ] ->
+            { state | result = Ok quoted }
 
         -- Function calls first evaluate all of the items in the list and then call the function with the args
         SpList exprs ->
@@ -232,7 +258,7 @@ evalAll exprs state =
                     { finalState | result = Err err }
 
                 Ok [] ->
-                    { finalState | result = Err "Nothing to evaluate." }
+                    finalState
 
                 Ok [ final ] ->
                     { finalState | result = Ok final }
