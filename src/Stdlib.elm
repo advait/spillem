@@ -18,6 +18,8 @@ lib =
         , ( "<", BuiltinFun (numNumBool (<)) )
         , ( "<=", BuiltinFun (numNumBool (<=)) )
         , ( "type", BuiltinFun typeof )
+        , ( "car", BuiltinFun car )
+        , ( "cdr", BuiltinFun cdr )
         ]
 
 
@@ -90,6 +92,36 @@ typeof args state =
 
         _ ->
             { state | result = Err "Invalid number of arguments" }
+
+
+{-| Returns the first element of a list or nil if the list is empty.
+-}
+car : List SpExpression -> SpState -> SpState
+car args state =
+    case args of
+        [ SpList (head :: _) ] ->
+            { state | result = Ok head }
+
+        [ SpList [] ] ->
+            { state | result = Ok spNil }
+
+        _ ->
+            { state | result = Err "Invalid car to car" }
+
+
+{-| Returns the tail of a list or nil if the list is empty.
+-}
+cdr : List SpExpression -> SpState -> SpState
+cdr args state =
+    case args of
+        [ SpList (_ :: tail) ] ->
+            { state | result = Ok <| SpList tail }
+
+        [ SpList [] ] ->
+            { state | result = Ok spNil }
+
+        _ ->
+            { state | result = Err "Invalid car to car" }
 
 
 {-| Convert an elm function (Int -> Int -> Int) into a BuiltinFun with appropriate argument
