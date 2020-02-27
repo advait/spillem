@@ -7,10 +7,41 @@ import SpParser
 -}
 spillem =
     """
+;;; Boolean Operations
+
+;; Boolean not
+(def! not
+  (fn* (b) (if b false true))
+)
+
+;; Boolean or
+(def! or
+  (fn* (a b)
+    (if a b false)
+  )
+)
+
+;; Boolean and
+(def! and
+  (fn* (a b)
+    (if (not a) false b)
+  )
+)
+
+
+;;; List operations
+
 ;; Returns whether the given list is empty.
 (def! empty?
   (fn* (l)
     (= l ())
+  )
+)
+
+;; Returns whether the argument is a list.
+(def! list?
+  (fn* (l)
+    (= (quote List) (type l))
   )
 )
     """

@@ -190,9 +190,9 @@ apply fun callArgs state =
                 processBindings names values inState =
                     case ( names, values ) of
                         ( name :: namesTail, value :: valuesTail ) ->
-                            eval value inState
-                                |> evalAndThen (insertBinding name)
-                                |> evalAndThen (\_ -> processBindings namesTail valuesTail)
+                            inState
+                                |> insertBinding name value
+                                |> processBindings namesTail valuesTail
 
                         ( [], [] ) ->
                             inState

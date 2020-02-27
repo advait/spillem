@@ -17,6 +17,7 @@ lib =
         , ( ">=", BuiltinFun (numNumBool (>=)) )
         , ( "<", BuiltinFun (numNumBool (<)) )
         , ( "<=", BuiltinFun (numNumBool (<=)) )
+        , ( "type", BuiltinFun typeof )
         ]
 
 
@@ -52,6 +53,40 @@ equals args state =
     case args of
         [ a, b ] ->
             { state | result = Ok (internalEq a b |> boolToExpr) }
+
+        _ ->
+            { state | result = Err "Invalid number of arguments" }
+
+
+{-| Returns a symbol representing the type of the given value.
+-}
+typeof : List SpExpression -> SpState -> SpState
+typeof args state =
+    let
+        typeofInternal : SpExpression -> Result String SpExpression
+        typeofInternal exp =
+            case exp of
+                SpInt _ ->
+                    Ok <| SpSymbol "Int"
+
+                SpSymbol _ ->
+                    Ok <| SpSymbol "Symbol"
+
+                SpList _ ->
+                    Ok <| SpSymbol "List"
+
+                BuiltinFun _ ->
+                    Ok <| SpSymbol "Function"
+
+                ClosureFun _ _ _ ->
+                    Ok <| SpSymbol "Function"
+
+                SpNothing ->
+                    Err "Nothing does not have a type"
+    in
+    case args of
+        [ arg ] ->
+            { state | result = typeofInternal arg }
 
         _ ->
             { state | result = Err "Invalid number of arguments" }

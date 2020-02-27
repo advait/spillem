@@ -9,6 +9,15 @@ spillem =
 ;; Testing Core
 (empty? ())
 ;=>true
+
+(empty? 1)
+;=>false
+
+(quote (1 2 3))
+;=>(1 2 3)
+
+(empty? (quote (1 2 3)))
+;=>false
 """ |> String.trim
 
 
