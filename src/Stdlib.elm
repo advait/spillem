@@ -4,7 +4,7 @@ import Dict exposing (Dict)
 import Types exposing (..)
 
 
-lib : Dict SpSymbol SpExpression
+lib : Dict SpSymbol Ref
 lib =
     Dict.fromList
         [ ( "+", BuiltinFun (numNumNum (+)) )
@@ -21,6 +21,7 @@ lib =
         , ( "car", BuiltinFun car )
         , ( "cdr", BuiltinFun cdr )
         ]
+        |> Dict.map (\k v -> DirectRef v)
 
 
 {-| Spillem equality check. Ints and symbols are equal by value. Lists are recursively checked for equality. No type

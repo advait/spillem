@@ -13,7 +13,7 @@ setGlobal key value env =
         rec (Env cur) =
             case cur.parentScope of
                 Nothing ->
-                    Env { cur | bindings = Dict.insert key value cur.bindings }
+                    Env { cur | bindings = Dict.insert key (DirectRef value) cur.bindings }
 
                 Just parent ->
                     Env { cur | parentScope = Just <| rec parent }
@@ -25,31 +25,63 @@ setGlobal key value env =
 -}
 setLocal : SpSymbol -> SpExpression -> Env -> Env
 setLocal key value (Env env) =
-    Env { env | bindings = Dict.insert key value env.bindings }
+    Env { env | bindings = Dict.insert key (DirectRef value) env.bindings }
+
+
+createIndirectRef : SpSymbol -> Env -> Env
+createIndirectRef key (Env env) =
+    Env { env | bindings = Dict.insert key IndirectRef env.bindings }
+
+
+setIndirectRef : SpSymbol -> SpExpression -> Env -> Env
+setIndirectRef key value (Env env) =
+    Env { env | indirectBindings = Dict.insert key value env.indirectBindings }
 
 
 {-| Recursively looks up a symbol in each of the scope, preferring inner scopes.
 -}
 lookupSymbol : SpSymbol -> Env -> Maybe SpExpression
 lookupSymbol key (Env env) =
-    case env.bindings |> Dict.get key of
-        Just exp ->
-            Just exp
+    let
+        lookupIndirect : Env -> Maybe SpExpression
+        lookupIndirect (Env inEnv) =
+            case inEnv.indirectBindings |> Dict.get key of
+                Just exp ->
+                    Just exp
 
-        Nothing ->
-            case env.parentScope of
                 Nothing ->
-                    Nothing
+                    case inEnv.parentScope of
+                        Nothing ->
+                            Nothing
 
-                Just parent ->
-                    lookupSymbol key parent
+                        Just parent ->
+                            lookupIndirect parent
+
+        lookupDirect : Env -> Maybe SpExpression
+        lookupDirect (Env inEnv) =
+            case inEnv.bindings |> Dict.get key of
+                Just (DirectRef exp) ->
+                    Just exp
+
+                Just IndirectRef ->
+                    lookupIndirect (Env env)
+
+                Nothing ->
+                    case inEnv.parentScope of
+                        Nothing ->
+                            Nothing
+
+                        Just parent ->
+                            lookupDirect parent
+    in
+    lookupDirect (Env env)
 
 
 {-| Pushes a scope onto the scope stack.
 -}
 pushScope : Env -> Env
 pushScope env =
-    Env { bindings = Dict.empty, parentScope = Just env }
+    Env { bindings = Dict.empty, indirectBindings = Dict.empty, parentScope = Just env }
 
 
 {-| Pops a scope from the scope stack.

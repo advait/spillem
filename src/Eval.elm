@@ -1,6 +1,7 @@
 module Eval exposing (..)
 
 import Core
+import Dict
 import Env
 import Stdlib
 import Types exposing (..)
@@ -14,6 +15,7 @@ initState =
         baseEnv =
             Env
                 { bindings = Stdlib.lib
+                , indirectBindings = Dict.empty
                 , parentScope = Nothing
                 }
 
@@ -69,31 +71,62 @@ eval expr state =
                     )
 
         -- Special form for let* bindings
-        SpList ((SpSymbol "let*") :: (SpList allBindings) :: [ returnValue ]) ->
+        SpList ((SpSymbol "let*") :: (SpList bindings) :: [ returnValue ]) ->
             let
-                insertBinding : SpSymbol -> SpExpression -> SpState -> SpState
-                insertBinding key value nextState =
-                    { env = nextState.env |> Env.setLocal key value
-                    , result = Ok <| value
-                    }
-
-                processBindings : List SpExpression -> SpState -> SpState
-                processBindings bindings inState =
-                    case bindings of
-                        (SpSymbol symbol) :: value :: tail ->
-                            eval value inState
-                                |> evalAndThen (insertBinding symbol)
-                                |> evalAndThen (\_ -> processBindings tail)
-
-                        [] ->
-                            inState
-
-                        _ ->
-                            { inState | result = Err "Incorrect let* syntax" }
+                evalAndInsertBinding : SpSymbol -> SpExpression -> SpState -> SpState
+                evalAndInsertBinding key unevaluatedBinding curState =
+                    eval unevaluatedBinding curState
+                        |> evalAndThen
+                            (\value finalState ->
+                                { env = finalState.env |> Env.setLocal key value
+                                , result = Ok <| value
+                                }
+                            )
             in
             state
                 |> (\s -> { s | env = s.env |> Env.pushScope })
-                |> processBindings allBindings
+                |> reduceLetBindings evalAndInsertBinding bindings
+                |> evalIfNotError returnValue
+                |> (\s -> { s | env = s.env |> Env.popScope })
+
+        -- Special form for letrec* bindings
+        -- 0. Create a new scope
+        -- 1. Bind all the names to indirect references
+        -- 2. Evaluate all the values, binding the names to the evaluated values
+        -- 3. Update the names from Step 1 to point to the evaluated values
+        -- 4. Update all function closures to use the updated env from Step 3
+        -- 5. Evaluate the returnValue
+        -- 6. Pop the scope, returning the value from Step 5
+        SpList ((SpSymbol "letrec") :: (SpList bindings) :: [ returnValue ]) ->
+            let
+                createIndirectRef : SpSymbol -> SpExpression -> SpState -> SpState
+                createIndirectRef name _ inState =
+                    { inState | env = inState.env |> Env.createIndirectRef name }
+
+                evalAndInsertBinding : SpSymbol -> SpExpression -> SpState -> SpState
+                evalAndInsertBinding key unevaluatedBinding curState =
+                    eval unevaluatedBinding curState
+                        |> evalAndThen
+                            (\value finalState ->
+                                { env = finalState.env |> Env.setIndirectRef key value
+                                , result = Ok <| value
+                                }
+                            )
+
+                updateClosureEnv : SpSymbol -> SpExpression -> SpState -> SpState
+                updateClosureEnv key _ curState =
+                    case curState.env |> Env.lookupSymbol key of
+                        Just (ClosureFun _ params inRetVal) ->
+                            { curState | env = curState.env |> Env.setIndirectRef key (ClosureFun curState.env params inRetVal) }
+
+                        _ ->
+                            curState
+            in
+            state
+                |> (\s -> { s | env = s.env |> Env.pushScope })
+                |> reduceLetBindings createIndirectRef bindings
+                |> reduceLetBindings evalAndInsertBinding bindings
+                |> reduceLetBindings updateClosureEnv bindings
                 |> evalIfNotError returnValue
                 |> (\s -> { s | env = s.env |> Env.popScope })
 
@@ -214,6 +247,26 @@ apply fun callArgs state =
             { state
                 | result = Err "Invalid function form"
             }
+
+
+{-| Given a list of alternating Symbol + Expressions, reduce the list with the reducer function. If the reducer
+returns an error at any point, halt and return that error.
+-}
+reduceLetBindings : (SpSymbol -> SpExpression -> SpState -> SpState) -> List SpExpression -> SpState -> SpState
+reduceLetBindings reducer bindings state =
+    case bindings of
+        (SpSymbol symbol) :: value :: tail ->
+            reducer symbol value state
+                |> evalAndThen (\_ -> reduceLetBindings reducer tail)
+
+        [] ->
+            state
+
+        _ :: _ :: _ ->
+            { state | result = Err "Expected symbol" }
+
+        _ ->
+            { state | result = Err "Not enough arguments in bindings" }
 
 
 {-| Evaluate a list of expressions. If any of them fail, stop and provide the failure.
