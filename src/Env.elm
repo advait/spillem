@@ -28,60 +28,55 @@ setLocal key value (Env env) =
     Env { env | bindings = Dict.insert key (DirectRef value) env.bindings }
 
 
-createIndirectRef : SpSymbol -> Env -> Env
-createIndirectRef key (Env env) =
-    Env { env | bindings = Dict.insert key IndirectRef env.bindings }
-
-
-setIndirectRef : SpSymbol -> SpExpression -> Env -> Env
-setIndirectRef key value (Env env) =
-    Env { env | indirectBindings = Dict.insert key value env.indirectBindings }
-
-
-{-| Recursively looks up a symbol in each of the scope, preferring inner scopes.
+{-| Sets a lazy binding in the local (inner-most) scope. Lazy bindings are necessary in situations
+like letrec where the bindings refer to the environment and the environment refers to
+the bindings in a mutually recursive fashion. We must break the hard recursive cycle by manually
+introducing laziness. Here, a lazy value is only computed when it needed at runtime. Because of the
+immutable nature of Elm, lazy values are always re-computed on read.
 -}
-lookupSymbol : SpSymbol -> Env -> Maybe SpExpression
-lookupSymbol key (Env env) =
+setLazyLocal : SpSymbol -> (() -> Result String SpExpression) -> Env -> Env
+setLazyLocal key lazyValue (Env env) =
+    Env { env | bindings = Dict.insert key (LazyRef lazyValue) env.bindings }
+
+
+{-| Recursively looks up a symbol in each of the scopes, preferring inner scopes. The value is placed
+in the returned state's result. If the symbol is not found, a ReferenceError is placed in the result.
+-}
+stateLookupSymbol : SpSymbol -> SpState -> SpState
+stateLookupSymbol key state =
     let
-        lookupIndirect : Env -> Maybe SpExpression
-        lookupIndirect (Env inEnv) =
-            case inEnv.indirectBindings |> Dict.get key of
-                Just exp ->
-                    Just exp
-
-                Nothing ->
-                    case inEnv.parentScope of
-                        Nothing ->
-                            Nothing
-
-                        Just parent ->
-                            lookupIndirect parent
-
-        lookupDirect : Env -> Maybe SpExpression
-        lookupDirect (Env inEnv) =
-            case inEnv.bindings |> Dict.get key of
+        lookupDirect : Env -> SpState
+        lookupDirect (Env env) =
+            case env.bindings |> Dict.get key of
                 Just (DirectRef exp) ->
-                    Just exp
+                    { state | result = Ok exp }
 
-                Just IndirectRef ->
-                    lookupIndirect (Env env)
+                Just (LazyRef ref) ->
+                    { state | result = ref () }
 
                 Nothing ->
-                    case inEnv.parentScope of
+                    case env.parentScope of
                         Nothing ->
-                            Nothing
+                            { state | result = Err ("ReferenceError: " ++ key) }
 
                         Just parent ->
                             lookupDirect parent
     in
-    lookupDirect (Env env)
+    lookupDirect state.env
 
 
 {-| Pushes a scope onto the scope stack.
 -}
 pushScope : Env -> Env
 pushScope env =
-    Env { bindings = Dict.empty, indirectBindings = Dict.empty, parentScope = Just env }
+    Env { bindings = Dict.empty, parentScope = Just env }
+
+
+{-| Like pushScope but operates on an SpState.
+-}
+statePushScope : SpState -> SpState
+statePushScope state =
+    { state | env = state.env |> pushScope }
 
 
 {-| Pops a scope from the scope stack.
@@ -94,3 +89,10 @@ popScope (Env env) =
 
         Just parent ->
             parent
+
+
+{-| Like popScope but operates on an SpState.
+-}
+statePopScope : SpState -> SpState
+statePopScope state =
+    { state | env = state.env |> popScope }

@@ -15,7 +15,6 @@ initState =
         baseEnv =
             Env
                 { bindings = Stdlib.lib
-                , indirectBindings = Dict.empty
                 , parentScope = Nothing
                 }
 
@@ -44,17 +43,12 @@ eval expr state =
             { state | result = Ok <| SpInt i }
 
         -- Evaluating symbols dereferences the symbols in the environment unless it is a special reserved symbol
-        SpSymbol s ->
+        SpSymbol symbol ->
             if List.member expr [ spTrue, spFalse, spNil ] then
                 { state | result = Ok expr }
 
             else
-                { state
-                    | result =
-                        state.env
-                            |> Env.lookupSymbol s
-                            |> Result.fromMaybe ("ReferenceError: " ++ s)
-                }
+                Env.stateLookupSymbol symbol state
 
         -- Empty list evaluates to itself
         SpList [] ->
@@ -84,51 +78,40 @@ eval expr state =
                             )
             in
             state
-                |> (\s -> { s | env = s.env |> Env.pushScope })
+                |> Env.statePushScope
                 |> reduceLetBindings evalAndInsertBinding bindings
                 |> evalIfNotError returnValue
-                |> (\s -> { s | env = s.env |> Env.popScope })
+                |> Env.statePopScope
 
-        -- Special form for letrec* bindings
-        -- 0. Create a new scope
-        -- 1. Bind all the names to indirect references
-        -- 2. Evaluate all the values, binding the names to the evaluated values
-        -- 3. Update the names from Step 1 to point to the evaluated values
-        -- 4. Update all function closures to use the updated env from Step 3
-        -- 5. Evaluate the returnValue
-        -- 6. Pop the scope, returning the value from Step 5
+        -- Special form for letrec bindings
+        -- Here, the values are dependent on the environment and the environment is dependent on the values
+        -- (the "rec" in "letrec"). Elm nicely supports recursively defined values for this use case.
         SpList ((SpSymbol "letrec") :: (SpList bindings) :: [ returnValue ]) ->
             let
-                createIndirectRef : SpSymbol -> SpExpression -> SpState -> SpState
-                createIndirectRef name _ inState =
-                    { inState | env = inState.env |> Env.createIndirectRef name }
+                -- fullyBoundState consists of the environment after all of the bindings are set.
+                -- Because of the recursive definition, we must introduce a (() -> SpState) here instead of a
+                -- direct SpState.
+                -- See: https://github.com/elm/compiler/blob/master/hints/bad-recursion.md
+                fullyBoundState : () -> SpState
+                fullyBoundState _ =
+                    state
+                        |> Env.statePushScope
+                        |> reduceLetBindings createLazyBinding bindings
 
-                evalAndInsertBinding : SpSymbol -> SpExpression -> SpState -> SpState
-                evalAndInsertBinding key unevaluatedBinding curState =
-                    eval unevaluatedBinding curState
-                        |> evalAndThen
-                            (\value finalState ->
-                                { env = finalState.env |> Env.setIndirectRef key value
-                                , result = Ok <| value
-                                }
-                            )
-
-                updateClosureEnv : SpSymbol -> SpExpression -> SpState -> SpState
-                updateClosureEnv key _ curState =
-                    case curState.env |> Env.lookupSymbol key of
-                        Just (ClosureFun _ params inRetVal) ->
-                            { curState | env = curState.env |> Env.setIndirectRef key (ClosureFun curState.env params inRetVal) }
-
-                        _ ->
-                            curState
+                createLazyBinding : SpSymbol -> SpExpression -> SpState -> SpState
+                createLazyBinding key unevaluatedValue inState =
+                    let
+                        lazyEvaluateValue =
+                            -- TODO(advait): There is a bug here. Note how we are discarding the environment
+                            -- and only paying attention to the returned result. If this lazy expression modifies
+                            -- the environment with def!, etc., we will lose those modifications.
+                            \_ -> eval unevaluatedValue (fullyBoundState ()) |> .result
+                    in
+                    { inState | env = inState.env |> Env.setLazyLocal key lazyEvaluateValue }
             in
-            state
-                |> (\s -> { s | env = s.env |> Env.pushScope })
-                |> reduceLetBindings createIndirectRef bindings
-                |> reduceLetBindings evalAndInsertBinding bindings
-                |> reduceLetBindings updateClosureEnv bindings
+            fullyBoundState ()
                 |> evalIfNotError returnValue
-                |> (\s -> { s | env = s.env |> Env.popScope })
+                |> Env.statePopScope
 
         -- Special form for fn* function closure definitions
         SpList [ SpSymbol "fn*", SpList args, body ] ->

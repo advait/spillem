@@ -45,29 +45,17 @@ spillem =
   )
 )
 
-;; The famous Y Combinator! Used to enable recurision in non-recursive languages.
-(def! Y
-   (fn* (X)
-     ((fn* (procedure)
-        (X (fn* (arg) ((procedure procedure) arg))))
-      (fn* (procedure)
-        (X (fn* (arg) ((procedure procedure) arg)))))
-   )
-)
- 
-; Fib
-(def! Fib*
-  (fn* (Fib*)
-    (fn* (n)
-      (if (< n 2)
-          n
-          (+ (Fib* (- n 1)) (Fib* (- n 2)))
-      )
+;; Returns the length of a list.
+(def! count
+  (letrec (count (fn* (l)
+    (if (empty? l)
+        0
+        (+ 1 (count (cdr l)))
     )
+  ))
+  count
   )
 )
-
-(def! fib (Y Fib*))
     """
 
 

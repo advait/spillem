@@ -25,14 +25,13 @@ one scope in it (the global scope).
 type Env
     = Env
         { bindings : Dict SpSymbol Ref
-        , indirectBindings : Dict SpSymbol SpExpression
         , parentScope : Maybe Env
         }
 
 
 type Ref
     = DirectRef SpExpression
-    | IndirectRef
+    | LazyRef (() -> Result String SpExpression)
 
 
 {-| Represents the entire state of the interpreter. The result represents the result of evaluating
