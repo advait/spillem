@@ -44,6 +44,30 @@ spillem =
     (= (quote List) (type l))
   )
 )
+
+;; The famous Y Combinator! Used to enable recurision in non-recursive languages.
+(def! Y
+   (fn* (X)
+     ((fn* (procedure)
+        (X (fn* (arg) ((procedure procedure) arg))))
+      (fn* (procedure)
+        (X (fn* (arg) ((procedure procedure) arg)))))
+   )
+)
+ 
+; Fib
+(def! Fib*
+  (fn* (Fib*)
+    (fn* (n)
+      (if (< n 2)
+          n
+          (+ (Fib* (- n 1)) (Fib* (- n 2)))
+      )
+    )
+  )
+)
+
+(def! fib (Y Fib*))
     """
 
 
