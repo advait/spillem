@@ -3,7 +3,6 @@ module EvalTest exposing (..)
 import Eval exposing (eval, evalAll)
 import Expect
 import SpParser exposing (parseExpr, parseFile, print)
-import Stdlib
 import Test exposing (..)
 import Types exposing (..)
 

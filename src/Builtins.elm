@@ -1,11 +1,11 @@
-module Stdlib exposing (..)
+module Builtins exposing (builtins)
 
 import Dict exposing (Dict)
 import Types exposing (..)
 
 
-lib : Dict SpSymbol Ref
-lib =
+builtins : Dict SpSymbol Ref
+builtins =
     Dict.fromList
         [ ( "+", BuiltinFun (numNumNum (+)) )
         , ( "-", BuiltinFun (numNumNum (-)) )

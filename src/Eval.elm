@@ -1,9 +1,8 @@
 module Eval exposing (..)
 
+import Builtins
 import Core
-import Dict
 import Env
-import Stdlib
 import Types exposing (..)
 
 
@@ -14,7 +13,7 @@ initState =
     let
         baseEnv =
             Env
-                { bindings = Stdlib.lib
+                { bindings = Builtins.builtins
                 , parentScope = Nothing
                 }
 
