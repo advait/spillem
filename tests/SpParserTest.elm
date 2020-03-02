@@ -35,6 +35,16 @@ suite =
             , testParse (SpList [ SpInt 2, SpList [] ]) "(2 ())"
             , testParse (SpList [ SpSymbol "-", SpInt 0, SpInt 2 ]) "(- 0 2)"
             ]
+        , describe "quote"
+            [ testParse (quoted "quote" <| SpInt 1) "'1"
+            , testParse (quoted "quasiquote" <| SpInt 1) "`1"
+            , testParse (quoted "unquote" <| SpInt 1) ",1"
+            , testParse (quoted "quote" <| SpList []) "'()"
+            , testParse (quoted "quote" <| SpList [ SpInt 1 ]) "'(1)"
+            , testParse (quoted "quote" <| SpList [ SpInt 1, SpList [ SpInt 2 ] ]) "'(1 (2))"
+            , testParse (quoted "quote" <| spTrue) "'true"
+            , testParse (quoted "quote" <| SpSymbol "hello") "'hello"
+            ]
         , fuzz expFuzzer "parse and print are inverses" (\exp -> Expect.equal (Just exp) (doParse <| print exp))
         ]
 
@@ -79,3 +89,8 @@ expFuzzer =
                 Fuzz.oneOf [ intFuzzer, symbolFuzzer, listFuzzer (maxDepth - 1) ]
     in
     Fuzz.oneOf [ intFuzzer, symbolFuzzer, listFuzzer 3 ]
+
+
+quoted : String -> SpExpression -> SpExpression
+quoted f exp =
+    SpList [ SpSymbol f, exp ]

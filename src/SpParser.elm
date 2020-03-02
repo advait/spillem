@@ -46,7 +46,7 @@ symbolParser : Parser SpExpression
 symbolParser =
     let
         allowedSymbolChars =
-            "!@#$%^&*-+/,~_?=<>" |> String.toList
+            "!@#$%^&*-+/~_?=<>" |> String.toList
 
         symbolStart c =
             Char.isAlpha c || List.member c allowedSymbolChars
@@ -78,6 +78,29 @@ listParser =
             }
 
 
+{-| Parser for shorthand quote expressions.
+"'(1 2 3)" parses to the equivalent of "(quote (1 2 3))"
+-}
+quoteParser : Parser SpExpression
+quoteParser =
+    let
+        wrapWith function body =
+            SpList [ SpSymbol function, body ]
+
+        makeParser symbol function =
+            Parser.succeed (wrapWith function)
+                |. Parser.symbol symbol
+                |= expressionParser
+    in
+    Parser.oneOf
+        [ makeParser "'" "quote"
+        , makeParser "`" "quasiquote"
+        , makeParser "," "unquote"
+        ]
+
+
+{-| Parses comments, yielding an SpNothing.
+-}
 commentParser : Parser SpExpression
 commentParser =
     Parser.succeed SpNothing
@@ -92,7 +115,7 @@ expressionParser =
         lazy =
             Parser.lazy
                 (\_ ->
-                    Parser.oneOf [ intParser, symbolParser, listParser, commentParser ]
+                    Parser.oneOf [ intParser, symbolParser, listParser, quoteParser, commentParser ]
                 )
     in
     Parser.succeed identity

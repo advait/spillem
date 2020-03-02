@@ -41,7 +41,7 @@ spillem =
 ;; Returns whether the argument is a list.
 (def! list?
   (fn* (l)
-    (= (quote List) (type l))
+    (= 'List (type l))
   )
 )
 

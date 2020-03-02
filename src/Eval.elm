@@ -32,7 +32,6 @@ initState =
 
 
 {-| Evaluate an expression in the context of an environment, producing a result.
-TODO(advait): Change argument order of eval to best support chaining.
 -}
 eval : SpExpression -> SpState -> SpState
 eval expr state =

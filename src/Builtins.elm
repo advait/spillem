@@ -18,6 +18,7 @@ builtins =
         , ( "<", BuiltinFun (numNumBool (<)) )
         , ( "<=", BuiltinFun (numNumBool (<=)) )
         , ( "type", BuiltinFun typeof )
+        , ( "list", BuiltinFun createList )
         , ( "car", BuiltinFun car )
         , ( "cdr", BuiltinFun cdr )
         ]
@@ -93,6 +94,13 @@ typeof args state =
 
         _ ->
             { state | result = Err "Invalid number of arguments" }
+
+
+{-| Creates a new list with the given arguments.
+-}
+createList : List SpExpression -> SpState -> SpState
+createList args state =
+    { state | result = Ok <| SpList args }
 
 
 {-| Returns the first element of a list or nil if the list is empty.

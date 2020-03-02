@@ -16,13 +16,19 @@ spillem =
 (quote (1 2 3))
 ;=>(1 2 3)
 
-(empty? (quote (1 2 3)))
+'(1 2 3)
+;=>(1 2 3)
+
+(empty? '(1 2 3))
 ;=>false
 
 (count ())
 ;=>0
-(count (quote (1 2 3)))
+(count '(1 2 3))
 ;=>3
+
+(= '(1 2 3) (list 1 2 3))
+;=>true
 
 ;; Testing basic conditionals
 (= 2 1)
